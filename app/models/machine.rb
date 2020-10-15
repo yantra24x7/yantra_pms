@@ -74,6 +74,63 @@ has_one :machine_setting
   #   end
   # end
 
+  def self.new_run_time(du_value, all_value, start_time, end_time)
+    collect_data = []
+    run_time = []
+    idle_time = []
+    stop_time = []
+    if du_value.count == 0
+      collect_data << {status: 100, du_time: (end_time - start_time).to_i}
+    elsif du_value.count == 1
+      id_ind = all_value.find_index(data)
+      status = all_value[id_ind-1].present? ? all_value[id_ind-1].machine_status : all_value[id_ind].machine_status
+      t1 = (data.created_at.localtime - start_time).to_i
+      t2 = (end_time - data.created_at.localtime).to_i
+      collect_data << {status: status, du_time: t1} 
+      collect_data << {status: data.machine_status, du_time: t2}
+    else
+      du_value.each_with_index do |data, index| 
+        if du_value[0] == data
+          st_mean_time = (data.created_at.localtime - start_time).to_i
+          if st_mean_time == 0
+            collect_data << {status: data.machine_status, du_time: st_mean_time} 
+          else
+            id_ind = all_value.find_index(data)
+            byebug
+            status = all_value[id_ind-1].present? ? all_value[id_ind-1].machine_status : data.machine_status
+            collect_data << {status: status, du_time: st_mean_time}
+          end
+        elsif du_value[-1] == data
+          end_mean_time = (end_time - data.created_at.localtime).to_i
+          collect_data << {status: data.machine_status, du_time: end_mean_time}
+        else
+           f_data = du_value[index - 1]
+           status = f_data.machine_status
+           time = (data.created_at - f_data.created_at).to_i
+           collect_data << {status: status, du_time: time}
+        end 
+      end
+    end         
+  collect_data.each do |ii|
+    if ii[:status] == 3
+      run_time << ii[:du_time]
+    elsif ii[:status] == 100
+      stop_time << ii[:du_time]
+    else
+      idle_time << ii[:du_time]
+    end    
+  end
+  return {run_time:run_time.sum, idle_time:idle_time.sum, stop_time:stop_time.sum}
+  end
+
+  def self.new_idle_time
+    
+  end
+
+  def self.new_stop_time
+    
+  end
+
 
     def self.daily_maintanence(params)
 #Machine.where(tenant_id:Tenant.where(isactive:true).ids).map do |machine|
