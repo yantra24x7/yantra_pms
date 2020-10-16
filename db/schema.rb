@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20200120095715) do
+ActiveRecord::Schema.define(version: 20201016094812) do
 
   create_table "AlarmCodes_MachineSeriesNos", id: false, force: :cascade, options: "ENGINE=InnoDB DEFAULT CHARSET=utf8" do |t|
     t.integer "machine_series_no_id", null: false
@@ -420,6 +420,30 @@ ActiveRecord::Schema.define(version: 20200120095715) do
     t.index ["tenant_id"], name: "index_ct_reports_on_tenant_id", using: :btree
   end
 
+  create_table "current_parts", force: :cascade, options: "ENGINE=InnoDB DEFAULT CHARSET=utf8" do |t|
+    t.date     "date"
+    t.string   "shift_no"
+    t.string   "part"
+    t.string   "program_number"
+    t.integer  "cycle_time"
+    t.integer  "cutting_time"
+    t.string   "cycle_st_to_st"
+    t.string   "cycle_stop_to_stop"
+    t.datetime "time"
+    t.datetime "part_start_time"
+    t.datetime "part_end_time"
+    t.datetime "cycle_start"
+    t.integer  "status"
+    t.boolean  "is_active"
+    t.datetime "deleted_at"
+    t.integer  "shifttransaction_id"
+    t.integer  "machine_id"
+    t.datetime "created_at",          null: false
+    t.datetime "updated_at",          null: false
+    t.index ["machine_id"], name: "index_current_parts_on_machine_id", using: :btree
+    t.index ["shifttransaction_id"], name: "index_current_parts_on_shifttransaction_id", using: :btree
+  end
+
   create_table "dashboard_data", force: :cascade, options: "ENGINE=InnoDB DEFAULT CHARSET=utf8" do |t|
     t.date     "date"
     t.string   "utilization"
@@ -745,6 +769,7 @@ ActiveRecord::Schema.define(version: 20200120095715) do
     t.string   "y_axis"
     t.string   "z_axis"
     t.string   "reason"
+    t.index ["created_at"], name: "index_machine_daily_logs_on_created_at", using: :btree
     t.index ["machine_id"], name: "index_machine_daily_logs_on_machine_id", using: :btree
   end
 
@@ -804,6 +829,7 @@ ActiveRecord::Schema.define(version: 20200120095715) do
     t.string   "y_axis"
     t.string   "z_axis"
     t.string   "reason"
+    t.index ["created_at"], name: "index_machine_logs_on_created_at", using: :btree
     t.index ["machine_id"], name: "index_machine_logs_on_machine_id", using: :btree
   end
 
@@ -1176,6 +1202,10 @@ ActiveRecord::Schema.define(version: 20200120095715) do
     t.string   "cycle_st_to_st"
     t.string   "cycle_stop_to_stop"
     t.datetime "time"
+    t.datetime "part_start_time"
+    t.datetime "part_end_time"
+    t.datetime "cycle_start"
+    t.integer  "status"
     t.integer  "shifttransaction_id"
     t.integer  "machine_id"
     t.boolean  "is_active"
@@ -1613,6 +1643,8 @@ ActiveRecord::Schema.define(version: 20200120095715) do
   add_foreign_key "ct_reports", "operators"
   add_foreign_key "ct_reports", "shifts"
   add_foreign_key "ct_reports", "tenants"
+  add_foreign_key "current_parts", "machines"
+  add_foreign_key "current_parts", "shifttransactions"
   add_foreign_key "dashboard_data", "machines"
   add_foreign_key "dashboard_data", "shifttransactions"
   add_foreign_key "dashboard_data", "tenants"

@@ -310,78 +310,83 @@ end
   end
   #####################33
 # data insert API
-  def api
-   
+def api
+  #remoe=remove_cache
+  current_prod = current_part
   m_set = m_setting
   machine = machine_cache
 
- find_data = machine.select{|i| i['machine_ip'] == params['machine_id']}
+  find_data = machine.select{|i| i['machine_ip'] == params['machine_id']}
 
- if find_data.present?
-  mac_id = Machine.new(find_data.first)
-  mac_sets= m_set.select{|i| i['machine_id'] == mac_id.id}
-  if mac_sets.present?
-    mac_set = mac_sets.first
-    machine_setting = MachineSetting.new(mac_set)
-  if params["machine_status"] != '3' && params["machine_status"] != '100'
-      if machine_setting.reason.present?
-        reason = machine_setting.reason
+  if find_data.present?
+    mac_id = Machine.new(find_data.first)
+    mac_sets= m_set.select{|i| i['machine_id'] == mac_id.id}
+    if mac_sets.present?
+      mac_set = mac_sets.first
+      machine_setting = MachineSetting.new(mac_set)
+      if params["machine_status"] != '3' && params["machine_status"] != '100'
+        if machine_setting.reason.present?
+          reason = machine_setting.reason
+        else
+          reason = "Reason Not Entered"
+        end
       else
         reason = "Reason Not Entered"
       end
-   else
-    #mac_set.update(reason: "Reason Not Entered")
-    reason = "Reason Not Entered"
-   end
 
       axis_load = [{ "x_axis": params[:sv_x], "y_axis": params[:sv_y], "z_axis": params[:sv_z], "a_axis": params[:sv_a], "b_axis": params[:sv_b]}]
       axis_temp = [{"x_axis": params[:svtemp_x], "y_axis": params[:svtemp_y], "z_axis": params[:svtemp_z], "a_axis": params[:svtemp_a], "b_axis": params[:svtemp_b]}]
       puls_code = [{"x_axis": params[:svpulse_x], "y_axis": params[:svpulse_y], "z_axis": params[:svpulse_z], "a_axis": params[:svpulse_a], "b_axis": params[:svpulse_b] }]
+    
+      log = MachineLog.create!(machine_status: params[:machine_status],parts_count: params[:parts_count],machine_id: mac_id.id,
+                  job_id: params[:job_id],total_run_time: params[:total_run_time],total_cutting_time: params[:total_cutting_time],
+                  run_time: params[:run_time],feed_rate: params[:feed_rate],cutting_speed: params[:cutting_speed],
+                  total_run_second:params[:total_cutting_time_second],run_second: params[:run_time_seconds],programe_number: params[:programe_number],machine_time: params[:machine_time], cycle_time_minutes: puls_code, cycle_time_per_part: reason, total_cutting_second: params[:total_cutting_time_second], spindle_load: params[:sp], x_axis: axis_load, y_axis: axis_temp, z_axis: params[:sp_temp])
 
-log = MachineLog.create!(machine_status: params[:machine_status],parts_count: params[:parts_count],machine_id: mac_id.id,
-                job_id: params[:job_id],total_run_time: params[:total_run_time],total_cutting_time: params[:total_cutting_time],
-                run_time: params[:run_time],feed_rate: params[:feed_rate],cutting_speed: params[:cutting_speed],
-                total_run_second:params[:total_cutting_time_second],run_second: params[:run_time_seconds],programe_number: params[:programe_number],machine_time: params[:machine_time], cycle_time_minutes: puls_code, cycle_time_per_part: reason, total_cutting_second: params[:total_cutting_time_second], spindle_load: params[:sp], x_axis: axis_load, y_axis: axis_temp, z_axis: params[:sp_temp])
+      MachineDailyLog.create!(machine_status: params[:machine_status],parts_count: params[:parts_count],machine_id: mac_id.id,
+                  job_id: params[:job_id],total_run_time: params[:total_run_time],total_cutting_time: params[:total_cutting_time],
+                  run_time: params[:run_time],feed_rate: params[:feed_rate],cutting_speed: params[:cutting_speed],
+                  total_run_second:params[:total_cutting_time_second],run_second: params[:run_time_seconds],programe_number: params[:programe_number],machine_time: params[:machine_time], cycle_time_minutes: puls_code, cycle_time_per_part: reason, total_cutting_second: params[:total_cutting_time_second], spindle_load: params[:sp], x_axis: axis_load, y_axis: axis_temp, z_axis: params[:sp_temp])
 
-  MachineDailyLog.create!(machine_status: params[:machine_status],parts_count: params[:parts_count],machine_id: mac_id.id,
-                job_id: params[:job_id],total_run_time: params[:total_run_time],total_cutting_time: params[:total_cutting_time],
-                run_time: params[:run_time],feed_rate: params[:feed_rate],cutting_speed: params[:cutting_speed],
-                total_run_second:params[:total_cutting_time_second],run_second: params[:run_time_seconds],programe_number: params[:programe_number],machine_time: params[:machine_time], cycle_time_minutes: puls_code, cycle_time_per_part: reason, total_cutting_second: params[:total_cutting_time_second], spindle_load: params[:sp], x_axis: axis_load, y_axis: axis_temp, z_axis: params[:sp_temp])
-  
-# te_setting = setting
-# set_almrm = set_alm
-# user_list = user
-# one_single = one_sing 
-
-# tenant_setting = te_setting.select{|i| i['tenant_id'] == mac_id.tenant_id}
-# if tenant_setting.present? && tenant_setting.first["notification"] == false
-#   alarm_setting = set_alm.select{|i| i['machine_id'] == mac_id.id}
-#   if alarm_setting.present? && alarm_setting.pluck(:active).include?(nil)
-  
-#   else
-#     render json: "Notification Not Set For Machine"
-#   end
-# else
-#   render json: "Notification Not Set For Tenant"
-# end
-       
-         
-
-           
-
-
-
-
-render json: "OK"
-
-
-
+     
+      if cur_prod_data = current_prod.select{|i| i["machine_id"] == mac_id.id}.present?
+         cur_prod_data = current_prod.select{|i| i["machine_id"] == mac_id.id}.first
+         if cur_prod_data["part"] == params[:parts_count] && cur_prod_data["program_number"] == params[:programe_number]
+            puts "SAME PART RUNNING"
+         else
+            #mac_id.current_part.update(date: Time.now, shift_no: nil, part: log.parts_count, program_number: log.programe_number, cycle_time: nil, cutting_time: nil, cycle_st_to_st: nil, cycle_stop_to_stop: nil, time: nil, part_start_time: Time.now, part_end_time: Time.now, cycle_start: nil, status: 1, is_active: true, deleted_at: nil, shifttransaction_id: nil)
+            CurrentPart.find(mac_id.current_part.id).update(date: Time.now, shift_no: nil, part: log.parts_count, program_number: log.programe_number, cycle_time: nil, cutting_time: nil, cycle_st_to_st: nil, cycle_stop_to_stop: nil, time: nil, part_start_time: Time.now, part_end_time: Time.now, cycle_start: nil, status: 1, is_active: true, deleted_at: nil)
+            Part.find(mac_id.parts.last.id).update(part_end_time: Time.now)
+            Part.create(date: Time.now, shift_no: nil, part: log.parts_count, program_number: log.programe_number, cycle_time: nil, cutting_time: nil, cycle_st_to_st: nil, cycle_stop_to_stop: nil, time: nil, part_start_time: Time.now, part_end_time: Time.now, cycle_start: nil, status: 1, is_active: true, deleted_at: nil, shifttransaction_id: nil, machine_id: mac_id.id)
+            $redis.del("current_part")
+         end
+      else
+        if mac_id.current_part.present?
+          $redis.del("current_part")
+          current_prod = current_part
+          cur_prod_data = current_prod.select{|i| i["machine_id"] == mac_id.id}.first
+          if cur_prod_data["part"] == params[:parts_count] && cur_prod_data["program_number"] == params[:programe_number]
+            puts "SAME PART RUNNING"
+          else
+            # mac_id.current_part.update(date: Time.now, shift_no: nil, part: log.parts_count, program_number: log.programe_number, cycle_time: nil, cutting_time: nil, cycle_st_to_st: nil, cycle_stop_to_stop: nil, time: nil, part_start_time: Time.now, part_end_time: Time.now, cycle_start: nil, status: 1, is_active: true, deleted_at: nil, shifttransaction_id: nil)
+            CurrentPart.find(mac_id.current_part.id).update(date: Time.now, shift_no: nil, part: log.parts_count, program_number: log.programe_number, cycle_time: nil, cutting_time: nil, cycle_st_to_st: nil, cycle_stop_to_stop: nil, time: nil, part_start_time: Time.now, part_end_time: Time.now, cycle_start: nil, status: 1, is_active: true, deleted_at: nil)
+            Part.find(mac_id.parts.last.id).update(part_end_time: Time.now)
+            Part.create(date: Time.now, shift_no: nil, part: log.parts_count, program_number: log.programe_number, cycle_time: nil, cutting_time: nil, cycle_st_to_st: nil, cycle_stop_to_stop: nil, time: nil, part_start_time: Time.now, part_end_time: Time.now, cycle_start: nil, status: 1, is_active: true, deleted_at: nil, shifttransaction_id: nil, machine_id: mac_id.id)
+            $redis.del("current_part")
+          end
+        else
+          CurrentPart.create(date: Time.now, shift_no: nil, part: log.parts_count, program_number: log.programe_number, cycle_time: nil, cutting_time: nil, cycle_st_to_st: nil, cycle_stop_to_stop: nil, time: nil, part_start_time: Time.now, part_end_time: nil, cycle_start: nil, status: 1, is_active: true, deleted_at: nil, shifttransaction_id: nil, machine_id: mac_id.id)
+          Part.create(date: Time.now, shift_no: nil, part: log.parts_count, program_number: log.programe_number, cycle_time: nil, cutting_time: nil, cycle_st_to_st: nil, cycle_stop_to_stop: nil, time: nil, part_start_time: Time.now, part_end_time: Time.now, cycle_start: nil, status: 1, is_active: true, deleted_at: nil, shifttransaction_id: nil, machine_id: mac_id.id)
+        end
+      end
+ 
+      render json: "OK"
+    else
+      render json: "Machine Setting Not Registered"
+    end
   else
-    render json: "Machine Setting Not Registered"
+    render json: "Machine Not Registered"
   end
- else
-  render json: "Machine Not Registered"
- end
   
  
   
@@ -422,9 +427,7 @@ render json: "OK"
   #               run_time: params[:run_time],feed_rate: params[:feed_rate],cutting_speed: params[:cutting_speed],
   #               total_run_second:params[:total_cutting_time_second],run_second: params[:run_time_seconds],programe_number: params[:programe_number],machine_time: params[:machine_time], cycle_time_minutes: puls_code, cycle_time_per_part: reason, total_cutting_second: params[:total_cutting_time_second], spindle_load: params[:sp], x_axis: axis_load, y_axis: axis_temp, z_axis: params[:sp_temp])
   
-
-
-  end
+end
 
   def alarm_api
   

@@ -1,5 +1,28 @@
 module MachineHelper
 
+def remove_cache
+$redis.flushall
+# $redis.keys.each do |k|
+# 	byebug
+# end
+end
+
+def current_part
+	
+	current_part = $redis.get("current_part") rescue nil
+	
+	if current_part.nil?	
+	current_part = CurrentPart.all
+	current_part = current_part.to_json 	
+    $redis.set("current_part", current_part)
+	#$redis.expire("machine_list", 3.hours.to_i)
+	end
+
+ @current_part = JSON.load current_part
+end
+
+
+
 def machine_cache
 
 	machine_list = $redis.get("machine_list") rescue nil

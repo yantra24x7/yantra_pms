@@ -1562,6 +1562,8 @@ def self.cnc_report_simple_query_hour(tenant, shift_no, date, data)
 
            machine_log.each do |key, value|
             value1 = full_logs[key]
+            puts value.count
+            puts value1.count
             byebug
             tot_time_res = Machine.new_run_time(value, value1, hour_start_time[0].to_time, (hour_end_time.to_time-1))
         

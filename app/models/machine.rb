@@ -46,7 +46,8 @@ has_many :dashboard_lives
 has_many :dashboard_data
 has_one :machine_setting
 
-
+has_one :current_part
+has_many :parts
   # def self.alert_mail # For continues data loss from Raspery Pi
   #   Tenant.where(id: [3,8]).map do |tenant|
   #     ProblemStatusLog.create(tenant_id:tenant.id) unless tenant.problem_status_log.present?
@@ -96,7 +97,6 @@ has_one :machine_setting
             collect_data << {status: data.machine_status, du_time: st_mean_time} 
           else
             id_ind = all_value.find_index(data)
-            byebug
             status = all_value[id_ind-1].present? ? all_value[id_ind-1].machine_status : data.machine_status
             collect_data << {status: status, du_time: st_mean_time}
           end
