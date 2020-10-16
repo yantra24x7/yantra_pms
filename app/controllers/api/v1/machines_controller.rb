@@ -392,6 +392,8 @@ def api
           Part.create(date: Time.now, shift_no: nil, part: log.parts_count, program_number: log.programe_number, cycle_time: nil, cutting_time: cutt, cycle_st_to_st: nil, cycle_stop_to_stop: nil, time: nil, part_start_time: Time.now, part_end_time: Time.now, cycle_start: nil, status: 1, is_active: true, deleted_at: nil, shifttransaction_id: nil, machine_id: mac_id.id)
         end
       end
+    else
+      puts "status 100"
     end
 
       render json: "OK"
