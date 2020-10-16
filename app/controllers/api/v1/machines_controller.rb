@@ -348,7 +348,7 @@ def api
                   run_time: params[:run_time],feed_rate: params[:feed_rate],cutting_speed: params[:cutting_speed],
                   total_run_second:params[:total_cutting_time_second],run_second: params[:run_time_seconds],programe_number: params[:programe_number],machine_time: params[:machine_time], cycle_time_minutes: puls_code, cycle_time_per_part: reason, total_cutting_second: params[:total_cutting_time_second], spindle_load: params[:sp], x_axis: axis_load, y_axis: axis_temp, z_axis: params[:sp_temp])
 
-     
+     unless params["machine_status"] == '100'
       if cur_prod_data = current_prod.select{|i| i["machine_id"] == mac_id.id}.present?
          cur_prod_data = current_prod.select{|i| i["machine_id"] == mac_id.id}.first
          if cur_prod_data["part"] == params[:parts_count] && cur_prod_data["program_number"] == params[:programe_number]
@@ -392,6 +392,7 @@ def api
           Part.create(date: Time.now, shift_no: nil, part: log.parts_count, program_number: log.programe_number, cycle_time: nil, cutting_time: cutt, cycle_st_to_st: nil, cycle_stop_to_stop: nil, time: nil, part_start_time: Time.now, part_end_time: Time.now, cycle_start: nil, status: 1, is_active: true, deleted_at: nil, shifttransaction_id: nil, machine_id: mac_id.id)
         end
       end
+    end
 
       render json: "OK"
     else
