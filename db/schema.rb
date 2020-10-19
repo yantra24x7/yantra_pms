@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20201016094812) do
+ActiveRecord::Schema.define(version: 20201017094927) do
 
   create_table "AlarmCodes_MachineSeriesNos", id: false, force: :cascade, options: "ENGINE=InnoDB DEFAULT CHARSET=utf8" do |t|
     t.integer "machine_series_no_id", null: false
@@ -937,14 +937,19 @@ ActiveRecord::Schema.define(version: 20201016094812) do
     t.string   "machine_serial_no"
     t.string   "machine_type"
     t.integer  "tenant_id"
-    t.datetime "created_at",        null: false
-    t.datetime "updated_at",        null: false
+    t.datetime "created_at",                      null: false
+    t.datetime "updated_at",                      null: false
     t.boolean  "isactive"
     t.datetime "deleted_at"
     t.string   "machine_ip"
     t.integer  "unit"
     t.string   "device_id"
     t.integer  "controller_type"
+    t.json     "alarm_setting"
+    t.json     "axis_setting"
+    t.integer  "dis_min",           default: 10
+    t.integer  "dis_sec",           default: 0
+    t.integer  "dis_tot",           default: 600
     t.index ["deleted_at"], name: "index_machines_on_deleted_at", using: :btree
     t.index ["tenant_id"], name: "index_machines_on_tenant_id", using: :btree
   end
@@ -1462,8 +1467,10 @@ ActiveRecord::Schema.define(version: 20201016094812) do
     t.string   "actual_working_without_break"
     t.integer  "day"
     t.integer  "end_day"
+    t.integer  "tenant_id"
     t.index ["deleted_at"], name: "index_shifttransactions_on_deleted_at", using: :btree
     t.index ["shift_id"], name: "index_shifttransactions_on_shift_id", using: :btree
+    t.index ["tenant_id"], name: "index_shifttransactions_on_tenant_id", using: :btree
   end
 
   create_table "tenant_setting_lists", force: :cascade, options: "ENGINE=InnoDB DEFAULT CHARSET=utf8" do |t|

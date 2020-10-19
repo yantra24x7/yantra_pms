@@ -5,7 +5,7 @@ class Shifttransaction < ApplicationRecord
   has_many :break_times,:dependent => :destroy
   has_many :operator_allocations,:dependent => :destroy
   belongs_to :shift
-
+  belongs_to :tenant
  def self.get_all_shift(params)
   	tenant = Tenant.find(params[:tenant_id])
   	shift = tenant.shift.shifttransactions.select{|ll| ll.shift_start_time.to_time.in_time_zone("Chennai") < Time.now && ll.shift_end_time.to_time.in_time_zone("Chennai") > Time.now}

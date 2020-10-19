@@ -45,6 +45,7 @@ has_one :planstatus
 has_many :dashboard_lives
 has_many :dashboard_data
 has_one :machine_setting
+has_many :Shifttransactions
 
 has_one :current_part
 has_many :parts

@@ -315,6 +315,7 @@ def api
   current_prod = current_part
   m_set = m_setting
   machine = machine_cache
+  c_shift = current_shift
 
   find_data = machine.select{|i| i['machine_ip'] == params['machine_id']}
 
@@ -338,6 +339,36 @@ def api
       axis_temp = [{"x_axis": params[:svtemp_x], "y_axis": params[:svtemp_y], "z_axis": params[:svtemp_z], "a_axis": params[:svtemp_a], "b_axis": params[:svtemp_b]}]
       puls_code = [{"x_axis": params[:svpulse_x], "y_axis": params[:svpulse_y], "z_axis": params[:svpulse_z], "a_axis": params[:svpulse_a], "b_axis": params[:svpulse_b] }]
     
+     
+     shifts = c_shift.select{|i| i["tenant_id"] == mac_id.tenant_id}
+    shift = []
+    shifts.each do |ll|
+        case
+          when ll["day"] == 1 && ll["end_day"] == 1
+            duration = ll["shift_start_time"].to_time..ll["shift_end_time"].to_time
+            if duration.include?(Time.now)
+              shift = ll
+            end
+          when ll["day"] == 1 && ll["end_day"] == 2
+            if Time.now.strftime("%p") == "AM"
+              duration = ll["shift_start_time"].to_time-1.day..ll["shift_end_time"].to_time
+             else
+              duration = ll["shift_start_time"].to_time..ll["shift_end_time"].to_time+1.day
+             end
+
+            #duration = ll.shift_start_time.to_time..ll.shift_end_time.to_time+1.day
+            if duration.include?(Time.now)
+              shift = ll
+            end     
+          else
+            duration = ll["shift_start_time"].to_time..ll["shift_end_time"].to_time
+            if duration.include?(Time.now)
+              shift = ll
+            end     
+          end
+          
+    end   
+
       log = MachineLog.create!(machine_status: params[:machine_status],parts_count: params[:parts_count],machine_id: mac_id.id,
                   job_id: params[:job_id],total_run_time: params[:total_run_time],total_cutting_time: params[:total_cutting_time],
                   run_time: params[:run_time],feed_rate: params[:feed_rate],cutting_speed: params[:cutting_speed],
@@ -352,44 +383,80 @@ def api
       if cur_prod_data = current_prod.select{|i| i["machine_id"] == mac_id.id}.present?
          cur_prod_data = current_prod.select{|i| i["machine_id"] == mac_id.id}.first
          if cur_prod_data["part"] == params[:parts_count] && cur_prod_data["program_number"] == params[:programe_number]
+            unless cur_prod_data["cycle_start"].present? || params["machine_status"] != '3'
+             cyc_tym = (params["run_time"].to_i)*60 + (params["run_time_seconds"].to_i/1000)
+             CurrentPart.find(mac_id.current_part.id).update(cycle_start: Time.now, cycle_st_to_st: cyc_tym)
+             $redis.del("current_part")
+            end
             puts "SAME PART RUNNING"
          else
-            #mac_id.current_part.update(date: Time.now, shift_no: nil, part: log.parts_count, program_number: log.programe_number, cycle_time: nil, cutting_time: nil, cycle_st_to_st: nil, cycle_stop_to_stop: nil, time: nil, part_start_time: Time.now, part_end_time: Time.now, cycle_start: nil, status: 1, is_active: true, deleted_at: nil, shifttransaction_id: nil)
-            CurrentPart.find(mac_id.current_part.id).update(date: Time.now, shift_no: nil, part: log.parts_count, program_number: log.programe_number, cycle_time: nil, cutting_time: nil, cycle_st_to_st: nil, cycle_stop_to_stop: nil, time: nil, part_start_time: Time.now, part_end_time: Time.now, cycle_start: nil, status: 1, is_active: true, deleted_at: nil)
-            
+            curr_part = CurrentPart.find(mac_id.current_part.id)
+            curr_part_st_time = curr_part.cycle_st_to_st
+            curr_part_cy_start = curr_part.cycle_start
+            curr_part.update(date: Time.now, shift_no: shift["shift_no"], part: log.parts_count, program_number: log.programe_number, cycle_time: nil, cutting_time: nil, cycle_st_to_st: nil, cycle_stop_to_stop: nil, time: nil, part_start_time: Time.now, part_end_time: Time.now, cycle_start: nil, status: 1, is_active: true, deleted_at: nil, shifttransaction_id: shift["id"])
             last_part = Part.find(mac_id.parts.last.id)
+        
             cutt = (log.total_cutting_time.to_i * 60) + (log.total_cutting_second.to_i / 1000)
             cutt_time = cutt - last_part.cutting_time.to_i
             cycle_time = (log.run_time.to_i * 60) + (log.run_second.to_i / 1000)
 
-            last_part.update(cutting_time: cutt_time, cycle_time: cycle_time, part_end_time: log.created_at)
-
-            Part.create(date: Time.now, shift_no: nil, part: log.parts_count, program_number: log.programe_number, cycle_time: nil, cutting_time: cutt, cycle_st_to_st: nil, cycle_stop_to_stop: nil, time: nil, part_start_time: Time.now, part_end_time: Time.now, cycle_start: nil, status: 1, is_active: true, deleted_at: nil, shifttransaction_id: nil, machine_id: mac_id.id)
+           
+            last_part.update(is_active: true,cutting_time: cutt_time, cycle_time: cycle_time, part_end_time: log.created_at, shift_no: shift["shift_no"],shifttransaction_id: shift["id"],cycle_st_to_st:curr_part_st_time,cycle_start:curr_part_cy_start)
+            Part.create(date: Time.now, shift_no: shift["shift_no"], part: log.parts_count, program_number: log.programe_number, cycle_time: nil, cutting_time: cutt, cycle_st_to_st: curr_part_st_time, cycle_stop_to_stop: nil, time: nil, part_start_time: Time.now, part_end_time: Time.now, cycle_start: nil, status: 1, is_active: false, deleted_at: nil, shifttransaction_id: shift["id"], machine_id: mac_id.id)
             $redis.del("current_part")
+            # CurrentPart.find(mac_id.current_part.id).update(date: Time.now, shift_no: shift["shift_no"], part: log.parts_count, program_number: log.programe_number, cycle_time: nil, cutting_time: nil, cycle_st_to_st: nil, cycle_stop_to_stop: nil, time: nil, part_start_time: Time.now, part_end_time: Time.now, cycle_start: nil, status: 1, is_active: true, deleted_at: nil,shifttransaction_id: shift["id"])
+            
+            # last_part = Part.find(mac_id.parts.last.id)
+            # cutt = (log.total_cutting_time.to_i * 60) + (log.total_cutting_second.to_i / 1000)
+            # cutt_time = cutt - last_part.cutting_time.to_i
+            # cycle_time = (log.run_time.to_i * 60) + (log.run_second.to_i / 1000)
+
+            
+
+            # last_part.update(cutting_time: cutt_time, cycle_time: cycle_time, part_end_time: log.created_at, shift_no: shift["shift_no"],shifttransaction_id: shift["id"])
+            # Part.create(date: Time.now, shift_no: shift["shift_no"], part: log.parts_count, program_number: log.programe_number, cycle_time: nil, cutting_time: cutt, cycle_st_to_st: nil, cycle_stop_to_stop: nil, time: nil, part_start_time: Time.now, part_end_time: Time.now, cycle_start: nil, status: 1, is_active: false, deleted_at: nil, shifttransaction_id: shift["id"], machine_id: mac_id.id)
+            # $redis.del("current_part")
          end
       else
         if mac_id.current_part.present?
           $redis.del("current_part")
           current_prod = current_part
           cur_prod_data = current_prod.select{|i| i["machine_id"] == mac_id.id}.first
+          
           if cur_prod_data["part"] == params[:parts_count] && cur_prod_data["program_number"] == params[:programe_number] 
+            unless cur_prod_data["cycle_start"].present? || params["machine_status"] != '3'
+             cyc_tym = (params["run_time"].to_i)*60 + (params["run_time_seconds"].to_i/1000)
+             CurrentPart.find(mac_id.current_part.id).update(cycle_start: Time.now, cycle_st_to_st: cyc_tym)
+             $redis.del("current_part")
+            end
+            
             puts "SAME PART RUNNING"
-          else
-            # mac_id.current_part.update(date: Time.now, shift_no: nil, part: log.parts_count, program_number: log.programe_number, cycle_time: nil, cutting_time: nil, cycle_st_to_st: nil, cycle_stop_to_stop: nil, time: nil, part_start_time: Time.now, part_end_time: Time.now, cycle_start: nil, status: 1, is_active: true, deleted_at: nil, shifttransaction_id: nil)
-            CurrentPart.find(mac_id.current_part.id).update(date: Time.now, shift_no: nil, part: log.parts_count, program_number: log.programe_number, cycle_time: nil, cutting_time: nil, cycle_st_to_st: nil, cycle_stop_to_stop: nil, time: nil, part_start_time: Time.now, part_end_time: Time.now, cycle_start: nil, status: 1, is_active: true, deleted_at: nil)
+
+           else
+            curr_part = CurrentPart.find(mac_id.current_part.id)
+            curr_part_st_time = curr_part.cycle_st_to_st
+            curr_part_cy_start = curr_part.cycle_start
+            curr_part.update(date: Time.now, shift_no: shift["shift_no"], part: log.parts_count, program_number: log.programe_number, cycle_time: nil, cutting_time: nil, cycle_st_to_st: nil, cycle_stop_to_stop: nil, time: nil, part_start_time: Time.now, part_end_time: Time.now, cycle_start: nil, status: 1, is_active: true, deleted_at: nil, shifttransaction_id: shift["id"])
             last_part = Part.find(mac_id.parts.last.id)
+        
             cutt = (log.total_cutting_time.to_i * 60) + (log.total_cutting_second.to_i / 1000)
             cutt_time = cutt - last_part.cutting_time.to_i
             cycle_time = (log.run_time.to_i * 60) + (log.run_second.to_i / 1000)
 
-            last_part.update(cutting_time: cutt_time, cycle_time: cycle_time, part_end_time: log.created_at)
-            Part.create(date: Time.now, shift_no: nil, part: log.parts_count, program_number: log.programe_number, cycle_time: nil, cutting_time: cutt, cycle_st_to_st: nil, cycle_stop_to_stop: nil, time: nil, part_start_time: Time.now, part_end_time: Time.now, cycle_start: nil, status: 1, is_active: true, deleted_at: nil, shifttransaction_id: nil, machine_id: mac_id.id)
+           
+            last_part.update(is_active: true,cutting_time: cutt_time, cycle_time: cycle_time, part_end_time: log.created_at, shift_no: shift["shift_no"],shifttransaction_id: shift["id"],cycle_st_to_st:curr_part_st_time,cycle_start:curr_part_cy_start)
+            Part.create(date: Time.now, shift_no: shift["shift_no"], part: log.parts_count, program_number: log.programe_number, cycle_time: nil, cutting_time: cutt, cycle_st_to_st: nil, cycle_stop_to_stop: nil, time: nil, part_start_time: Time.now, part_end_time: Time.now, cycle_start: nil, status: 1, is_active: false, deleted_at: nil, shifttransaction_id: shift["id"], machine_id: mac_id.id)
             $redis.del("current_part")
           end
+
         else
+          if params["machine_status"] == '3'
+            st_time = Time.now
+          end
+
           cutt = (log.total_cutting_time.to_i * 60) + (log.total_cutting_second.to_i / 1000)
-          CurrentPart.create(date: Time.now, shift_no: nil, part: log.parts_count, program_number: log.programe_number, cycle_time: nil, cutting_time: nil, cycle_st_to_st: nil, cycle_stop_to_stop: nil, time: nil, part_start_time: Time.now, part_end_time: nil, cycle_start: nil, status: 1, is_active: true, deleted_at: nil, shifttransaction_id: nil, machine_id: mac_id.id)
-          Part.create(date: Time.now, shift_no: nil, part: log.parts_count, program_number: log.programe_number, cycle_time: nil, cutting_time: cutt, cycle_st_to_st: nil, cycle_stop_to_stop: nil, time: nil, part_start_time: Time.now, part_end_time: Time.now, cycle_start: nil, status: 1, is_active: true, deleted_at: nil, shifttransaction_id: nil, machine_id: mac_id.id)
+          CurrentPart.create(date: Time.now, shift_no: shift["shift_no"], part: log.parts_count, program_number: log.programe_number, cycle_time: nil, cutting_time: nil, cycle_st_to_st: nil, cycle_stop_to_stop: nil, time: nil, part_start_time: Time.now, part_end_time: Time.now, cycle_start: st_time, status: 1, is_active: true, deleted_at: nil, shifttransaction_id: shift["id"], machine_id: mac_id.id)
+          Part.create(date: Time.now, shift_no: shift["shift_no"], part: log.parts_count, program_number: log.programe_number, cycle_time: nil, cutting_time: cutt, cycle_st_to_st: nil, cycle_stop_to_stop: nil, time: nil, part_start_time: Time.now, part_end_time: Time.now, cycle_start: st_time, status: 1, is_active: false, deleted_at: nil, shifttransaction_id: shift["id"], machine_id: mac_id.id)
         end
       end
     else

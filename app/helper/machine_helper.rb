@@ -8,7 +8,6 @@ $redis.flushall
 end
 
 def current_part
-	
 	current_part = $redis.get("current_part") rescue nil
 	
 	if current_part.nil?	
@@ -19,6 +18,19 @@ def current_part
 	end
 
  @current_part = JSON.load current_part
+end
+
+def current_shift
+	current_shift = $redis.get("current_shift") rescue nil
+	
+	if current_shift.nil?	
+	current_shift = Shifttransaction.all
+	current_shift = current_shift.to_json 	
+    $redis.set("current_shift", current_shift)
+	#$redis.expire("machine_list", 3.hours.to_i)
+	end
+
+ @current_shift = JSON.load current_shift
 end
 
 
