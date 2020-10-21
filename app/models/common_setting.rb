@@ -216,7 +216,7 @@ machine_ids.each do |mac|
         puls_coder,
         0,
         0,
-	0                          
+	      0                          
        ]
 
 end
@@ -232,11 +232,31 @@ if @alldata.present?
         end
       end
     end
+   hour_report = CommonSetting.hour_report(date,tenant,shtif,start_time,end_time,full_logs,full_parts,machine_ids)
+end
 
-
-
-
-
-
+def self.hour_report(date,tenant,shift,start_time,end_time,full_logs,full_parts,mac_list)
+  case
+      when shift.day == 1 && shift.end_day == 1
+        start_time = (date+" "+shift.shift_start_time).to_time
+        end_time = (date+" "+shift.shift_end_time).to_time
+      when shift.day == 1 && shift.end_day == 2
+        start_time = (date+" "+shift.shift_start_time).to_time
+        end_time = (date+" "+shift.shift_end_time).to_time+1.day
+      else
+        start_time = (date+" "+shift.shift_start_time).to_time+1.day
+        end_time = (date+" "+shift.shift_end_time).to_time+1.day
+      end
+      byebug
+      (start_time.to_i..end_time.to_i).step(3600) do |hour|
+        (hour.to_i+3600 <= end_time.to_i) ? (hour_start_time=Time.at(hour).strftime("%Y-%m-%d %H:%M"),hour_end_time=Time.at(hour.to_i+3600).strftime("%Y-%m-%d %H:%M")) : (hour_start_time=Time.at(hour).strftime("%Y-%m-%d %H:%M"),hour_end_time=Time.at(end_time).strftime("%Y-%m-%d %H:%M"))
+          unless hour_start_time[0].to_time == hour_end_time.to_time  
+          puts hour_start_time[0].to_time..(hour_end_time.to_time)
+          end
+          puts "STOP"
+          puts "STOP"
+          puts "STOP"
+          puts "STOP"
+      end
 end
 end
