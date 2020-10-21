@@ -987,6 +987,8 @@ end
        sp_temp = 0
 
     end
+     
+
       time_diff =  dur - (run_time.to_i+stop_time.to_i+idle_time.to_i)
 
       if stop_time.to_i > run_time.to_i && stop_time.to_i > idle_time.to_i

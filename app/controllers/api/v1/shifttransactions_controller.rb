@@ -36,6 +36,7 @@ class ShifttransactionsController < ApplicationController
     if @shifttransaction.update(shifttransaction_params)
       actual_working_hours =params[:shift_start_time].to_time.strftime("%p")=="PM" && params[:shift_end_time].to_time.strftime("%p")=="AM" ?  Time.at((params[:shift_end_time].to_time - 1.day) - params[:shift_start_time].to_time).utc.strftime("%H:%M:%S") : Time.at(params[:shift_end_time].to_time - params[:shift_start_time].to_time).utc.strftime("%H:%M:%S") 
       @shifttransaction.update(actual_working_hours:actual_working_hours)
+       $redis.del("current_shift")
       render json: @shifttransaction
     else
       render json: @shifttransaction.errors, status: :unprocessable_entity

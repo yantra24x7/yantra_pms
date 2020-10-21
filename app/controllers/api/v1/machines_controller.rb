@@ -18,8 +18,36 @@ class MachinesController < ApplicationController
   end
 
     def latest_dashboard
-
-    data1=MachineMonthlyLog.latest_machine_status(params)
+    machines = machine_cache
+    c_shift = current_shift
+    machine_list = machines.select{|i| i["tenant_id"] == params["tenant_id"].to_i}
+    shifts = c_shift.select{|i| i["tenant_id"] == params["tenant_id"].to_i}
+    shift = []
+    shifts.each do |ll|
+      case
+      when ll["day"] == 1 && ll["end_day"] == 1
+        duration = ll["shift_start_time"].to_time..ll["shift_end_time"].to_time
+        if duration.include?(Time.now)
+          shift = ll
+        end
+      when ll["day"] == 1 && ll["end_day"] == 2
+        if Time.now.strftime("%p") == "AM"
+          duration = ll["shift_start_time"].to_time-1.day..ll["shift_end_time"].to_time
+         else
+          duration = ll["shift_start_time"].to_time..ll["shift_end_time"].to_time+1.day
+         end
+        if duration.include?(Time.now)
+          shift = ll
+        end     
+      else
+        duration = ll["shift_start_time"].to_time..ll["shift_end_time"].to_time
+        if duration.include?(Time.now)
+          shift = ll
+        end     
+      end   
+    end   
+    # data1=MachineMonthlyLog.latest_machine_status(params)
+    data1 = Dashboard.live_status(params,machine_list,shift)
     
 unless data1 == 0
     running_count = []
@@ -44,7 +72,37 @@ render json: {message:"No shift or Machine Currently Avaliable"}
   end
 
    def single_machine_live_status
-    data1=MachineMonthlyLog.single_machine_live_status(params)
+    machines = machine_cache
+    c_shift = current_shift
+    machine = machines.select{|i| i["id"] == params["machine_id"].to_i}.first
+    shifts = c_shift.select{|i| i["tenant_id"] == machine["tenant_id"].to_i}
+    shift = []
+    shifts.each do |ll|
+      case
+      when ll["day"] == 1 && ll["end_day"] == 1
+        duration = ll["shift_start_time"].to_time..ll["shift_end_time"].to_time
+        if duration.include?(Time.now)
+          shift = ll
+        end
+      when ll["day"] == 1 && ll["end_day"] == 2
+        if Time.now.strftime("%p") == "AM"
+          duration = ll["shift_start_time"].to_time-1.day..ll["shift_end_time"].to_time
+         else
+          duration = ll["shift_start_time"].to_time..ll["shift_end_time"].to_time+1.day
+         end
+        if duration.include?(Time.now)
+          shift = ll
+        end     
+      else
+        duration = ll["shift_start_time"].to_time..ll["shift_end_time"].to_time
+        if duration.include?(Time.now)
+          shift = ll
+        end     
+      end   
+    end   
+
+    data1 = Dashboard.single_machine_live_status(params,machine,shift)
+    #data1=MachineMonthlyLog.single_machine_live_status(params)
     render json: data1
     end
   
@@ -60,12 +118,15 @@ render json: {message:"No shift or Machine Currently Avaliable"}
 
     if @machine.save
       @set_alarm_setting = SetAlarmSetting.create!([{:alarm_for=>"idle", :machine_id=>@machine.id},{:alarm_for=>"stop", :machine_id=>@machine.id}])
-       @machine_setting = MachineSetting.create(is_active: true, machine_id: @machine.id)
+      @machine_setting = MachineSetting.create(is_active: true, machine_id: @machine.id)
       @machine_setting_list = MachineSettingList.create(setting_name: "x_axis", machine_setting_id: @machine_setting.id)
       @machine_setting_list = MachineSettingList.create(setting_name: "y_axis", machine_setting_id: @machine_setting.id)
       @machine_setting_list = MachineSettingList.create(setting_name: "z_axis", machine_setting_id: @machine_setting.id)
       @machine_setting_list = MachineSettingList.create(setting_name: "a_axis", machine_setting_id: @machine_setting.id)
       @machine_setting_list = MachineSettingList.create(setting_name: "b_axis", machine_setting_id: @machine_setting.id)
+     $redis.del("machine_list")
+     $redis.del("m_setting")
+     
      render json: @machine, status: :created#, location: @machine
     else
       render json: @machine.errors, status: :unprocessable_entity
@@ -221,6 +282,8 @@ end
  #   RestClient.post "http://13.234.15.170/api/v1/rest_machine_update", @machine.attributes, {content_type: :json, accept: :json}
 
     if @machine.update(machine_params)
+      $redis.del("machine_list")
+       $redis.del("m_setting")
       render json: @machine
     else
       render json: @machine.errors, status: :unprocessable_entity
