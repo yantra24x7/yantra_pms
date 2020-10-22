@@ -22,27 +22,76 @@ class CommonSetting < ApplicationRecord
         
     tenant.machines.where(controller_type: 1).order(:id).map do |mac|
     machine_log = mac.machine_daily_logs.where("created_at >=? AND created_at <?",start_time,end_time).order(:id)
-      machine_log.each_with_index do |log, index|
-        if log.machine_status == 100  
-        else	
-         	if Machine.find(mac.id).parts.present?
-         		last_part = mac.parts.last
-         		if last_part.part.to_i == log.parts_count.to_i && last_part.program_number.to_i == log.programe_number.to_i
-         		else
-         		cutt = (log.total_cutting_time.to_i * 60) + (log.total_cutting_second.to_i / 1000)
-         		
-         		cutt_time = cutt - last_part.cutting_time.to_i
-         		cycle_time = (log.run_time.to_i * 60) + (log.run_second.to_i / 1000)
-         		
-         		mac.parts.last.update(cutting_time: cutt_time, cycle_time: cycle_time, part_end_time: log.created_at)
-         		Part.create(date: log.created_at, shift_no: nil, part: log.parts_count, program_number: log.programe_number, cycle_time: nil, cutting_time: cutt, cycle_st_to_st: nil, cycle_stop_to_stop: nil, time: nil, part_start_time: log.created_at, part_end_time: log.created_at, cycle_start: nil, status: 1, is_active: true, deleted_at: nil, shifttransaction_id: nil, machine_id: mac.id)
-         	  end
-         	else
-         		cutt = (log.total_cutting_time.to_i * 60) + (log.total_cutting_second.to_i / 1000)
-         		Part.create(date: log.created_at, shift_no: nil, part: log.parts_count, program_number: log.programe_number, cycle_time: nil, cutting_time: cutt, cycle_st_to_st: nil, cycle_stop_to_stop: nil, time: nil, part_start_time: log.created_at, part_end_time: log.created_at, cycle_start: nil, status: 1, is_active: true, deleted_at: nil, shifttransaction_id: nil, machine_id: mac.id)
-         	end
-        end
+    machine_log.each do |log|
+      # machine_log.each_with_index do |log, index|
+      #   if log.machine_status == 100  
+      #   else	
+      #    	if Machine.find(mac.id).parts.present?
+      #    		last_part = mac.parts.last
+      #      		if last_part.part.to_i == log.parts_count.to_i && last_part.program_number.to_i == log.programe_number.to_i
+      #      		else
+      #      		cutt = (log.total_cutting_time.to_i * 60) + (log.total_cutting_second.to_i / 1000)
+           		
+      #      		cutt_time = cutt - last_part.cutting_time.to_i
+      #      		cycle_time = (log.run_time.to_i * 60) + (log.run_second.to_i / 1000)
+           		
+      #      		mac.parts.last.update(cutting_time: cutt_time, cycle_time: cycle_time, part_end_time: log.created_at)
+      #      		Part.create(date: log.created_at, shift_no: nil, part: log.parts_count, program_number: log.programe_number, cycle_time: nil, cutting_time: cutt, cycle_st_to_st: nil, cycle_stop_to_stop: nil, time: nil, part_start_time: log.created_at, part_end_time: log.created_at, cycle_start: nil, status: 1, is_active: true, deleted_at: nil, shifttransaction_id: nil, machine_id: mac.id)
+      #      	  end
+      #    	else
+      #    		cutt = (log.total_cutting_time.to_i * 60) + (log.total_cutting_second.to_i / 1000)
+      #    		Part.create(date: log.created_at, shift_no: nil, part: log.parts_count, program_number: log.programe_number, cycle_time: nil, cutting_time: cutt, cycle_st_to_st: nil, cycle_stop_to_stop: nil, time: nil, part_start_time: log.created_at, part_end_time: log.created_at, cycle_start: nil, status: 1, is_active: true, deleted_at: nil, shifttransaction_id: nil, machine_id: mac.id)
+      #    	end
+      #   end
+      # end
+
+      unless log.machine_status == 100
+         if mac.parts.present?
+           cur_prod_data = mac.parts.last
+           if cur_prod_data.part == log.parts_count && cur_prod_data.program_number == log.programe_number
+              unless cur_prod_data.cycle_start.present? || log.machine_status != 3
+                cyc_tym = (log.run_time.to_i)*60 + (log.run_time_seconds.to_i/1000)
+                cur_prod_data.update(cycle_start: log.created_at, cycle_st_to_st: cyc_tym)
+              end
+              puts "SAME PART RUNNING"
+           else
+
+            cutt = (log.total_cutting_time.to_i * 60) + (log.total_cutting_second.to_i / 1000)
+            cutt_time = cutt - cur_prod_data.cutting_time.to_i
+            cycle_time = (log.run_time.to_i * 60) + (log.run_second.to_i / 1000)
+            cur_prod_data.update(is_active: true,cutting_time: cutt_time, cycle_time: cycle_time, part_end_time: log.created_at, shift_no: shift.shift_no,shifttransaction_id: shift.id,cycle_st_to_st:curr_part_st_time,cycle_start:curr_part_cy_start)
+ 
+            if log.machine_status == 3
+            st_time = Time.now
+          end
+          cutt = (log.total_cutting_time.to_i * 60) + (log.total_cutting_second.to_i / 1000)
+          Part.create(date: log.created_at, shift_no: shift.shift_no, part: log.parts_count, program_number: log.programe_number, cycle_time: nil, cutting_time: cutt, cycle_st_to_st: nil, cycle_stop_to_stop: nil, time: nil, part_start_time: log.created_at, part_end_time: log.created_at, cycle_start: st_time, status: 1, is_active: false, deleted_at: nil, shifttransaction_id: shift.id, machine_id: mac.id)
+         end
+
+          end
+
+        else
+          if log.machine_status == 3
+            st_time = Time.now
+          end
+          cutt = (log.total_cutting_time.to_i * 60) + (log.total_cutting_second.to_i / 1000)
+          Part.create(date: log.created_at, shift_no: shift.shift_no, part: log.parts_count, program_number: log.programe_number, cycle_time: nil, cutting_time: cutt, cycle_st_to_st: nil, cycle_stop_to_stop: nil, time: nil, part_start_time: log.created_at, part_end_time: log.created_at, cycle_start: st_time, status: 1, is_active: false, deleted_at: nil, shifttransaction_id: shift.id, machine_id: mac.id)
+         end
+      else
+        puts "status 100"
       end
+    end
+
+
+
+
+
+
+
+
+
+
+
     end
   end
 
