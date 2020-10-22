@@ -4,8 +4,8 @@ class CommonSetting < ApplicationRecord
 
   def self.part(tenant, shift_no, date)
 
-  	tenant = Tenant.find(tenant)
-  	shifts = Shifttransaction.includes(:shift).where(shifts: {tenant_id: tenant})
+    tenant = Tenant.find(tenant)
+    shifts = Shifttransaction.includes(:shift).where(shifts: {tenant_id: tenant})
     shift = shifts.find_by_shift_no(shift_no)
        
     case
@@ -63,7 +63,6 @@ class CommonSetting < ApplicationRecord
       start_time = (date+" "+shift.shift_start_time).to_time+1.day
       end_time = (date+" "+shift.shift_end_time).to_time+1.day
     end
-
     machine_ids = Tenant.find(tenant).machines.where(controller_type: 1).pluck(:id,:machine_name)
     mac_id = machine_ids.map{|i| i[0]}
     full_logs = MachineDailyLog.where(machine_id: mac_id)
@@ -71,8 +70,8 @@ class CommonSetting < ApplicationRecord
     
 machine_ids.each do |mac|
       machine_log = full_logs.select{|a| a.machine_id == mac[0]}
-      logs = machine_log.select{|a| a.created_at > start_time && a.created_at < end_time }
-      part = full_parts.select{|b|b.machine_id == mac[0] && b.cycle_start != nil}     
+      logs = machine_log.select{|a| a.created_at >= start_time && a.created_at < end_time-1 }
+      part = full_parts.select{|b|b.machine_id == mac[0] && b.cycle_start != nil && b.part_end_time >= start_time && b.part_end_time < end_time-1}     
       times = Machine.new_run_time(logs, full_logs, start_time, end_time)
       duration = (end_time.to_i - start_time.to_i).to_i
       run = times[:run_time]
@@ -177,7 +176,6 @@ machine_ids.each do |mac|
           target = 0
         end
        end
-      
      
        @alldata << [
                  
@@ -232,11 +230,12 @@ if @alldata.present?
         end
       end
     end
-   hour_report = CommonSetting.hour_report(date,tenant,shtif,start_time,end_time,full_logs,full_parts,machine_ids)
+   hour_report = CommonSetting.hour_report(date,tenant,shift,start_time,end_time,full_logs,full_parts,machine_ids)
 end
 
 def self.hour_report(date,tenant,shift,start_time,end_time,full_logs,full_parts,mac_list)
-  case
+ @all_data = []
+	case
       when shift.day == 1 && shift.end_day == 1
         start_time = (date+" "+shift.shift_start_time).to_time
         end_time = (date+" "+shift.shift_end_time).to_time
@@ -247,16 +246,163 @@ def self.hour_report(date,tenant,shift,start_time,end_time,full_logs,full_parts,
         start_time = (date+" "+shift.shift_start_time).to_time+1.day
         end_time = (date+" "+shift.shift_end_time).to_time+1.day
       end
-      byebug
+     
       (start_time.to_i..end_time.to_i).step(3600) do |hour|
         (hour.to_i+3600 <= end_time.to_i) ? (hour_start_time=Time.at(hour).strftime("%Y-%m-%d %H:%M"),hour_end_time=Time.at(hour.to_i+3600).strftime("%Y-%m-%d %H:%M")) : (hour_start_time=Time.at(hour).strftime("%Y-%m-%d %H:%M"),hour_end_time=Time.at(end_time).strftime("%Y-%m-%d %H:%M"))
           unless hour_start_time[0].to_time == hour_end_time.to_time  
           puts hour_start_time[0].to_time..(hour_end_time.to_time)
-          end
-          puts "STOP"
-          puts "STOP"
-          puts "STOP"
-          puts "STOP"
+          
+          mac_list.each do |mac|
+           
+	   logs = full_logs.select{|i| i.machine_id == mac[0] && i.created_at >= hour_start_time[0].to_time && i.created_at < hour_end_time.to_time-1}
+           part = full_parts.select{|b|b.machine_id == mac[0] && b.cycle_start != nil && b.part_end_time >= hour_start_time[0].to_time && b.part_end_time < hour_end_time.to_time-1}
+ 
+	   times = Machine.new_run_time(logs, full_logs, hour_start_time[0].to_time, hour_end_time.to_time)  
+           duration = (hour_end_time.to_time).to_i - (hour_start_time[0].to_time).to_i
+           run = times[:run_time]
+           idle = times[:idle_time]
+           stop = times[:stop_time]
+           utilization = (run*100)/duration
+       cycle_st_to_st = []
+       cutting_time = []
+       cycle_stop_to_stop = []
+       cycle_time = []
+      
+      part.each do |p|
+       cycle_time << {program_number: p.program_number, cycle_time: p.cycle_time.to_i, parts_count: p.part.to_i} 
+       cutting_time << p.cutting_time.to_i
+       cycle_st_to_st << p.cycle_start.to_time
+       cycle_stop_to_stop << p.part_end_time.to_time
       end
+	  
+
+      axis_loadd = []
+      tempp_val = []
+      puls_coder = []
+
+      if logs.present?
+        feed_rate_max = logs.pluck(:feed_rate).reject{|i| i == "" || i.nil? || i > 5000 || i == 0 }.map(&:to_i).max
+        spindle_speed_max = logs.pluck(:cutting_speed).reject{|i| i == "" || i.nil? || i == 0 }.map(&:to_i).max
+        sp_temp_min = logs.pluck(:z_axis).reject{|i| i == "" || i.nil? || i == 0 }.map(&:to_i).min
+        sp_temp_max = logs.pluck(:z_axis).reject{|i| i == "" || i.nil? || i == 0 }.map(&:to_i).max
+        spindle_load_min = logs.pluck(:spindle_load).reject{|i| i == "" || i.nil? || i == 0 }.map(&:to_i).min
+        spindle_load_max = logs.pluck(:spindle_load).reject{|i| i == "" || i.nil? || i == 0 }.map(&:to_i).max
+      
+	      mac_setting_id =  MachineSetting.find_by(machine_id: mac[0]).id     
+        data_val = MachineSettingList.where(machine_setting_id: mac_setting_id, is_active: true).pluck(:setting_name)
+
+        logs.last.x_axis.first.each_with_index do |key, index|
+          if data_val.include?(key[0].to_s)
+            load_value =  logs.pluck(:x_axis).sum.pluck(key[0]).reject{|i| i == "" || i.nil? || i == 0 }.map(&:to_i).min.to_s+' - '+logs.pluck(:x_axis).sum.pluck(key[0]).reject{|i| i == "" || i.nil? || i == 0 }.map(&:to_i).max.to_s
+            temp_value =  logs.pluck(:y_axis).sum.pluck(key[0]).reject{|i| i == "" || i.nil? || i == 0 }.map(&:to_i).min.to_s+' - '+logs.pluck(:y_axis).sum.pluck(key[0]).reject{|i| i == "" || i.nil? || i == 0 }.map(&:to_i).max.to_s
+            puls_value =  logs.pluck(:cycle_time_minutes).sum.pluck(key[0]).reject{|i| i == "" || i.nil? || i == 0 }.map(&:to_i).min.to_s+' - '+logs.pluck(:cycle_time_minutes).sum.pluck(key[0]).reject{|i| i == "" || i.nil? || i == 0 }.map(&:to_i).max.to_s
+            
+            if load_value == " - "
+              load_value = "0 - 0" 
+            end
+
+            if temp_value == " - "
+              temp_value = "0 - 0" 
+            end
+
+            if puls_value == " - "
+              puls_value = "0 - 0" 
+            end
+          
+            axis_loadd << {key[0].to_s.split(":").first => load_value}
+            tempp_val << {key[0].to_s.split(":").first => temp_value}
+            puls_coder << {key[0].to_s.split(":").first => puls_value}
+          else
+            axis_loadd << {key[0].to_s.split(":").first => "0 - 0"}
+            tempp_val <<  {key[0].to_s.split(":").first => "0 - 0"}
+            puls_coder << {key[0].to_s.split(":").first => "0 - 0"}
+          end
+        end
+      else
+       feed_rate_max = 0
+       spindle_speed_max = 0
+       sp_temp_min = 0
+       sp_temp_max = 0
+       spindle_load_min = 0
+       spindle_load_max = 0
+      end
+
+
+
+ if shift.operator_allocations.where(machine_id: mac[0]).last.nil?
+        operator_id = nil
+        target = 0
+      else
+        if shift.operator_allocations.where(machine_id: mac[0]).present?
+         shift.operator_allocations.where(machine_id: mac[0]).each do |ro|
+         aa = ro.from_date
+         bb = ro.to_date
+         cc = date
+          if cc.to_date.between?(aa.to_date,bb.to_date)
+            dd = ro#cc.to_date.between?(aa.to_date,bb.to_date)
+            if dd.operator_mapping_allocations.where(:date=>date.to_date).last.operator.present?
+              operator_id = dd.operator_mapping_allocations.where(:date=>date.to_date).last.operator.id
+              target = dd.operator_mapping_allocations.where(:date=>date.to_date).last.target
+            else
+              operator_id = nil
+              target = 0
+            end
+          else
+            operator_id = nil
+            target = 0
+          end
+         end
+        else
+          operator_id = nil
+          target = 0
+        end
+       end
+
+
+       @all_data << [
+               date,
+               hour_start_time[0].split(" ")[1]+' - '+hour_end_time.split(" ")[1],
+               duration,
+               shift.shift.id,
+               shift.shift_no,
+               operator_id,
+               mac[0],
+               "test",
+               cutting_time.count,
+               run,
+               idle,
+               stop,
+               0,
+               logs.count,
+               utilization,
+               tenant.id,
+               cycle_time,
+               cutting_time,  
+               spindle_load_min.to_s+' - '+spindle_load_max.to_s,
+               sp_temp_min.to_s+' - '+sp_temp_max.to_s,
+               axis_loadd,
+               tempp_val,
+               puls_coder,
+               feed_rate_max.to_s,
+               spindle_speed_max.to_s
+            ]
+
+
+
+
+	  end
+	  end 
+      end
+
+    if @all_data.present?
+      @all_data.each do |data|
+        if CncHourReport.where(date:data[0],shift_no: data[4], time: data[1], machine_id:data[6], tenant_id:data[15]).present?
+          CncHourReport.find_by(date:data[0],shift_no: data[4], time: data[1], machine_id:data[6], tenant_id:data[15]).update(date:data[0], time: data[1], hour: data[2], shift_id: data[3], shift_no: data[4], operator_id: data[5], machine_id: data[6], job_description: data[7], parts_produced: data[8], run_time: data[9], ideal_time: data[10], stop_time: data[11], time_diff: data[12], log_count: data[13], utilization: data[14],  tenant_id: data[15], all_cycle_time: data[16],cutting_time: data[17],spindle_load: data[18],spindle_m_temp: data[19],servo_load: data[20], servo_m_temp: data[21], puls_code: data[22],feed_rate:data[23], spendle_speed:data[24])
+        else
+          CncHourReport.create!(date:data[0], time: data[1], hour: data[2], shift_id: data[3], shift_no: data[4], operator_id: data[5], machine_id: data[6], job_description: data[7], parts_produced: data[8], run_time: data[9], ideal_time: data[10], stop_time: data[11], time_diff: data[12], log_count: data[13], utilization: data[14],  tenant_id: data[15], all_cycle_time: data[16],cutting_time: data[17],spindle_load: data[18],spindle_m_temp: data[19],servo_load: data[20], servo_m_temp: data[21], puls_code: data[22],feed_rate:data[23], spendle_speed:data[24])
+        end
+      end
+      end 
+
 end
 end

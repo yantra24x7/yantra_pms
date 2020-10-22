@@ -1149,8 +1149,8 @@ def self.last_hour_report(machine_id,tenant_id)
           ]
 
 end
-else
-  nil
+#else
+#  nil
 end
 
 
