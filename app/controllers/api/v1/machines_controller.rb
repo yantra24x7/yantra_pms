@@ -709,7 +709,7 @@ end
 
     # Only allow a trusted parameter "white list" through.
     def machine_params
-      params.require(:machine).permit(:machine_name, :machine_model, :machine_serial_no, :machine_type,:machine_ip, :tenant_id,:unit,:device_id, :controller_type)
+      params.require(:machine).permit(:machine_name, :machine_model, :machine_serial_no, :machine_type,:machine_ip, :tenant_id,:unit,:device_id, :controller_type, :dis_min,:dis_sec,:dis_tot)
     end
 end
 end

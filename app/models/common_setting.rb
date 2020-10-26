@@ -68,7 +68,7 @@ class CommonSetting < ApplicationRecord
           Part.create(date: log.created_at, shift_no: shift.shift_no, part: log.parts_count, program_number: log.programe_number, cycle_time: nil, cutting_time: cutt, cycle_st_to_st: nil, cycle_stop_to_stop: nil, time: nil, part_start_time: log.created_at, part_end_time: log.created_at, cycle_start: st_time, status: 1, is_active: false, deleted_at: nil, shifttransaction_id: shift.id, machine_id: mac.id)
          end
 
-          end
+         # end
 
         else
           if log.machine_status == 3

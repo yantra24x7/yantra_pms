@@ -176,8 +176,8 @@ def self.delay_jobs1
 
     date = Date.today.strftime("%Y-%m-%d") # "2019-12-25"
 #    date =  "2020-09-13"  
-  CncReport.delay(run_at: date.to_time + 1.hours, method: "sync").data_sync  
-  CncReport.delay(run_at: date.to_time + 13.hours, method: "sync").data_sync
+  # CncReport.delay(run_at: date.to_time + 1.hours, method: "sync").data_sync  
+  # CncReport.delay(run_at: date.to_time + 13.hours, method: "sync").data_sync
     tenant.shift.shifttransactions.each do |shift|
        
            case
@@ -194,19 +194,21 @@ def self.delay_jobs1
        # end
         
 
-	   unless Delayed::Job.where(run_at: end_time + 4.minutes, tenant: tenant.id, shift: shift.shift_no, date: date, method: "cnc_report_simple_query").present?
-		    CncHourReport.delay(run_at: end_time + 4.minutes, tenant: tenant.id, shift: shift.shift_no, date: date, method: "cnc_report_simple_query").cnc_report_simple_query(tenant.id, shift.shift_no, date)
-		  end
+	   unless Delayed::Job.where(run_at: end_time + 4.minutes, tenant: tenant.id, shift: shift.shift_no, date: date, method: "report").present?
+		    #CncHourReport.delay(run_at: end_time + 4.minutes, tenant: tenant.id, shift: shift.shift_no, date: date, method: "cnc_report_simple_query").cnc_report_simple_query(tenant.id, shift.shift_no, date)
+        CommonSetting.delay(run_at: end_time + 4.minutes, tenant: tenant.id, shift: shift.shift_no, date: date, method: "report").report(tenant.id, shift.shift_no, date)
+		  
+      end
           
-           if Tenant.find(tenant.id).machines.pluck(:controller_type).include?(2)
-           unless Delayed::Job.where(run_at: end_time + 6.minutes, tenant: tenant.id, shift: shift.shift_no, date: date, method: "cnc_report_simple_query_r").present?
-                    CtReport.delay(run_at: end_time + 6.minutes, tenant: tenant.id, shift: shift.shift_no, date: date, method: "cnc_report_simple_query_r").cnc_report_simple_query_r(tenant.id, shift.shift_no, date)
-         end
-          end
+         #   if Tenant.find(tenant.id).machines.pluck(:controller_type).include?(2)
+         #   unless Delayed::Job.where(run_at: end_time + 6.minutes, tenant: tenant.id, shift: shift.shift_no, date: date, method: "cnc_report_simple_query_r").present?
+         #            CtReport.delay(run_at: end_time + 6.minutes, tenant: tenant.id, shift: shift.shift_no, date: date, method: "cnc_report_simple_query_r").cnc_report_simple_query_r(tenant.id, shift.shift_no, date)
+         # end
+         #  end
 
 
-        unless Delayed::Job.where(run_at: end_time + 10.minutes, tenant: tenant.id, shift: shift.shift_no, date: date, method: "data_sync").present?
-     AlarmType.delay(run_at: end_time + 10.minutes, tenant: tenant.id, shift: shift.shift_no, date: date, method: "data_sync").file_sync(tenant.id, shift.shift_no, date)
+        unless Delayed::Job.where(run_at: end_time + 10.minutes, tenant: tenant.id, shift: shift.shift_no, date: date, method: "alarm_histories_report").present?
+     AlarmHistory.delay(run_at: end_time + 10.minutes, tenant: tenant.id, shift: shift.shift_no, date: date, method: "alarm_histories_report").alarm_histories_report(tenant.id, shift.shift_no, date)
   end
       
 #        AlarmType.delay(run_at: end_time + 48.hours, tenant: tenant.id, shift: shift.shift_no, date: date, method: "remove_data").remove_data(tenant.id, shift.shift_no, date)

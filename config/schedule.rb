@@ -26,14 +26,14 @@
 	runner "CncReport.delay_jobs1", :environment => 'development'
   end
 
-  every 1.day, at: '1am' do
-        runner "CncReport.data_sync", :environment => 'development'
-  end
+  # every 1.day, at: '1am' do
+  #       runner "CncReport.data_sync", :environment => 'development'
+  # end
 
 
-  every 1.day, at: '05:05pm' do
-        runner "CncReport.data_sync", :environment => 'development'
-  end
+  # every 1.day, at: '05:05pm' do
+  #       runner "CncReport.data_sync", :environment => 'development'
+  # end
 
   
   every :reboot do

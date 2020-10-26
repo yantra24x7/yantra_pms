@@ -15,6 +15,7 @@ class ShifttransactionsController < ApplicationController
 
   # POST /shifttransactions
   def create
+    
     @shifttransaction = Shifttransaction.new(shifttransaction_params)
 
     if @shifttransaction.save

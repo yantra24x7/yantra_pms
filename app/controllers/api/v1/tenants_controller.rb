@@ -63,11 +63,11 @@ class TenantsController < ApplicationController
 
   
 
-     tenant = Tenant.new(tenant_name: params[:tenant_name], address_line1: params[:address_line1], address_line2: params[:address_line1], city: params[:city], state: params[:state], country: params[:country], pincode: params[:pincode],  companytype_id:params[:companytype_id],isactive: false)
+     tenant = Tenant.new(tenant_name: params[:tenant_name], address_line1: params[:address_line1], address_line2: params[:address_line1], city: params[:city], state: params[:state], country: params[:country], pincode: params[:pincode],  companytype_id:params[:companytype_id],isactive: true)
     tenant.save!
     role = Role.create(role_name:"CEO", tenant_id:tenant.id)
     role1 = Role.create(role_name:"Operator", tenant_id:tenant.id)
-    user = User.new(first_name: params[:first_name], last_name: params[:last_name], email_id: params[:email_id], password: params[:password], phone_number: params[:phone_number], remarks: params[:remarks], usertype_id: params[:usertype_id], tenant_id:tenant.id, role_id:role.id, default: params[:default])   
+    user = User.new(first_name: params[:first_name], last_name: params[:last_name], email_id: params[:email_id], password: params[:password], phone_number: params[:phone_number], remarks: params[:remarks], usertype_id: params[:usertype_id], tenant_id:tenant.id, role_id:role.id, default: params[:default],isactive: true)   
     data = UserSetting.create(user_id: user.id)
     tenant_setting = TenantSetting.create(tenant_id: tenant.id)
     setting = Setting.create(tenant_id: tenant.id, hour_wise: true,date_wise: true, month_wise: true,program_wise: true, notification: true, ethernet: true)
