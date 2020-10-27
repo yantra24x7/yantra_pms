@@ -16,6 +16,39 @@ class ProgramConfsController < ApplicationController
     render json: @program_conf
   end
 
+   def wifi_config
+    system("sudo chmod 777 /etc/wpa_supplicant/wpa_supplicant.conf")
+    file_name = "wpa_supplicant.conf"
+    dir = "/etc/wpa_supplicant/"
+    if params[:user_name].present? && params[:password].present?
+      read_data = File.open(File.join(dir, file_name), 'r'){|f| f.read}
+      append_data = "\nnetwork={\nssid=\"#{params[:user_name]}\"\npsk=\"#{params[:password]}\"\nkey_mgmt=WPA-PSK\n}"
+      old_id = read_data.object_id
+      final_data = read_data << append_data
+      File.open(File.join(dir, file_name), "wb") do |file|
+        file.write(final_data)
+      end
+    # system("sudo reboot")
+      render json: {status: "true"}
+    else
+      render json: {status: "Give the user name and password"}
+    end
+  end
+
+  def wifi_user_checking
+    if params[:user_name].present?
+      system("sudo chmod 777 /etc/wpa_supplicant/wpa_supplicant.conf")
+      file_name = "wpa_supplicant.conf"
+      dir = "/etc/wpa_supplicant"
+      read_data = File.open(File.join(dir, file_name), 'r'){|f| f.read}
+      if read_data.include?("#{params[:user_name]}")
+        render json: {status: true}
+      else
+        render json: {status: false}
+      end
+    end
+  end
+
   # POST /program_confs
   def create
     mac = Machine.find(params[:machine_id])

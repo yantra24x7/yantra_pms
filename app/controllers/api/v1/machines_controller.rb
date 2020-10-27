@@ -111,6 +111,7 @@ render json: {message:"No shift or Machine Currently Avaliable"}
 
   # POST /machines
   def create
+     last_mac = Machine.last if Machine.present?
     @machine = Machine.new(machine_params)
  #   require 'rest-client'
  #   RestClient.post "http://13.234.15.170/api/v1/rest_machine_create", @machine.attributes, {content_type: :json, accept: :json}
@@ -124,6 +125,58 @@ render json: {message:"No shift or Machine Currently Avaliable"}
       @machine_setting_list = MachineSettingList.create(setting_name: "z_axis", machine_setting_id: @machine_setting.id)
       @machine_setting_list = MachineSettingList.create(setting_name: "a_axis", machine_setting_id: @machine_setting.id)
       @machine_setting_list = MachineSettingList.create(setting_name: "b_axis", machine_setting_id: @machine_setting.id)
+           if @machine.controller_type == "RS232"
+        serial_port_info = SerialPortInfo.create(port: params[:port], baurd_rate: params[:baurd_rate], data_bit: params[:data_bit], stop_bit: params[:stop_bit], parity: params[:parity], flow_control: params[:flow_control], machine_id: @machine.id)
+      end
+      count = Machine.count
+      dir = "/home/cnc/"
+      if count == 1
+
+        file_name = "machine_1"
+        File.open(File.join(dir, file_name), 'wb') do |file|
+          mac_ip = @machine.machine_ip
+          file.puts(mac_ip)
+        end
+        @machine.update(machine_file_name: file_name)
+      else
+        mac_file_name = last_mac.machine_file_name if last_mac.present?
+        inc_value = mac_file_name.split('_').last.to_i + 1 if mac_file_name.present?
+        if inc_value.present?
+          file_name = "machine_#{inc_value}"
+          File.open(File.join(dir, file_name), 'wb') do |file|
+            mac_ip = @machine.machine_ip
+            file.puts(mac_ip)
+          end
+          @machine.update(machine_file_name: file_name)
+        else
+          file_name = "machine_1"
+          File.open(File.join(dir, file_name), 'wb') do |file|
+            mac_ip = @machine.machine_ip
+            file.puts(mac_ip)
+          end
+          @machine.update(machine_file_name: file_name)
+        end
+      end
+      case
+     
+      when count == 1
+        system("gcc -I. /home/cnc/yantra1.c -lpthread -lfwlib32 -lstdc++ -lcurl -o /home/cnc/yantra1")
+       # system("cd /home/cnc && ./yantra1")
+      when count == 2
+        system("gcc -I. /home/cnc/yantra2.c -lpthread -lfwlib32 -lstdc++ -lcurl -o /home/cnc/yantra2")
+       # system("cd /home/cnc && ./yantra2")
+      when count == 3
+        system("gcc -I. /home/cnc/yantra3.c -lpthread -lfwlib32 -lstdc++ -lcurl -o /home/cnc/yantra3")
+       # system("cd /home/cnc && ./yantra3")
+      when count == 4
+        system("gcc -I. /home/cnc/yantra4.c -lpthread -lfwlib32 -lstdc++ -lcurl -o /home/cnc/yantra4")
+        #system("cd /home/cnc && ./yantra4")
+      when count == 5
+        system("gcc -I. /home/cnc/yantra5.c -lpthread -lfwlib32 -lstdc++ -lcurl -o /home/cnc/yantra5")
+        #system("cd /home/cnc && ./yantra5")
+      end
+
+
      $redis.del("machine_list")
      $redis.del("m_setting")
      
@@ -276,22 +329,62 @@ end
 
   # PATCH/PUT /machines/1
   def update
-    
-  #   @data = Machine.new(machine_params)
- #   require 'rest-client'
- #   RestClient.post "http://13.234.15.170/api/v1/rest_machine_update", @machine.attributes, {content_type: :json, accept: :json}
-
     if @machine.update(machine_params)
-      $redis.del("machine_list")
-       $redis.del("m_setting")
+      if @machine.controller_type == "RS232"
+        port = params[:port].present? ? params[:port] : @machine.serial_port_info.port
+        baurd_rate = params[:baurd_rate].present? ? params[:baurd_rate] : @machine.serial_port_info.baurd_rate
+        data_bit = params[:data_bit].present? ? params[:data_bit] : @machine.serial_port_info.data_bit
+        stop_bit = params[:stop_bit].present? ? params[:stop_bit] : @machine.serial_port_info.stop_bit
+        parity = params[:parity].present? ? params[:parity] : @machine.serial_port_info.parity
+        if params[:port] || params[:baurd_rate] || params[:data_bit] || params[:stop_bit] || params[:parity] || params[:flow_control] != nil
+    serial_info = @machine.serial_port_info.present?
+          if serial_info.present?
+            @machine.serial_port_info.update(port: port, baurd_rate: baurd_rate, data_bit: data_bit, stop_bit: stop_bit, parity: parity)
+          else
+            SerialPortInfo.create(port: port, baurd_rate: baurd_rate, data_bit: data_bit, stop_bit: stop_bit, parity: parity, machine_id: @machine.id)
+          end
+        end
+      end
+      file_name = @machine.machine_file_name if @machine.present?
+      dir = "/home/cnc/"
+      File.open(File.join(dir, file_name), 'wb')do |file|
+        mac_ip = @machine.machine_ip
+        file.puts(mac_ip)
+      end
       render json: @machine
     else
       render json: @machine.errors, status: :unprocessable_entity
     end
+
+    # if @machine.update(machine_params)
+    #   $redis.del("machine_list")
+    #    $redis.del("m_setting")
+    #   render json: @machine
+    # else
+    #   render json: @machine.errors, status: :unprocessable_entity
+    # end
   end
 
   # DELETE /machines/1
   def destroy
+    dir = "/home/cnc/"
+    mac_file_name = @machine.machine_file_name
+    File.delete("#{dir}#{mac_file_name}") if mac_file_name.present?
+    count = Machine.count
+    case 
+   
+    when count == 1
+      File.delete("/home/cnc/yantra1")
+    when count == 2
+      File.delete("/home/cnc/yantra2")
+    when count == 3
+      File.delete("/home/cnc/yantra3")
+    when count == 4
+      File.delete("/home/cnc/yantra4")
+    when count == 5
+      File.delete("/home/cnc/yantra5")
+    end
+    # File.delete(dir + mac_file_name)
     if @machine.destroy
       render json: true
     else

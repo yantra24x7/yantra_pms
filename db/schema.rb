@@ -950,6 +950,7 @@ ActiveRecord::Schema.define(version: 20201017094927) do
     t.integer  "dis_min",           default: 10
     t.integer  "dis_sec",           default: 0
     t.integer  "dis_tot",           default: 600
+    t.string   "machine_file_name"
     t.index ["deleted_at"], name: "index_machines_on_deleted_at", using: :btree
     t.index ["tenant_id"], name: "index_machines_on_tenant_id", using: :btree
   end
@@ -1364,6 +1365,19 @@ ActiveRecord::Schema.define(version: 20201017094927) do
     t.index ["tenant_id"], name: "index_roles_on_tenant_id", using: :btree
   end
 
+  create_table "serial_port_infos", force: :cascade, options: "ENGINE=InnoDB DEFAULT CHARSET=utf8" do |t|
+    t.string   "port"
+    t.integer  "baurd_rate"
+    t.integer  "data_bit"
+    t.integer  "stop_bit"
+    t.integer  "parity"
+    t.string   "flow_control"
+    t.integer  "machine_id"
+    t.datetime "created_at",   null: false
+    t.datetime "updated_at",   null: false
+    t.index ["machine_id"], name: "index_serial_port_infos_on_machine_id", using: :btree
+  end
+
   create_table "sessions", force: :cascade, options: "ENGINE=InnoDB DEFAULT CHARSET=utf8" do |t|
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
@@ -1746,6 +1760,7 @@ ActiveRecord::Schema.define(version: 20201017094927) do
   add_foreign_key "reports", "shifts"
   add_foreign_key "reports", "tenants"
   add_foreign_key "roles", "tenants"
+  add_foreign_key "serial_port_infos", "machines"
   add_foreign_key "set_alarm_settings", "machines"
   add_foreign_key "settings", "tenants"
   add_foreign_key "shift_parts", "machines"
