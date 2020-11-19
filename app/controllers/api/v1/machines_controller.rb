@@ -75,7 +75,7 @@ render json: {message:"No shift or Machine Currently Avaliable"}
     machines = machine_cache
     c_shift = current_shift
     machine = machines.select{|i| i["id"] == params["machine_id"].to_i}.first
-    shifts = c_shift.select{|i| i["tenant_id"] == machine["tenant_id"].to_i}
+    shifts = c_shift.select{|i| i["tenant_id"] == machine["tenant_id"].to_i if machine.present?}
     shift = []
     shifts.each do |ll|
       case
@@ -351,6 +351,8 @@ end
         mac_ip = @machine.machine_ip
         file.puts(mac_ip)
       end
+      $redis.del("machine_list")
+      $redis.del("m_setting")
       render json: @machine
     else
       render json: @machine.errors, status: :unprocessable_entity
@@ -369,7 +371,7 @@ end
   def destroy
     dir = "/home/cnc/"
     mac_file_name = @machine.machine_file_name
-    File.delete("#{dir}#{mac_file_name}") if mac_file_name.present?
+    File.delete("#{dir}#{mac_file_name}") if mac_file_name.present? && File.exist?("#{dir}#{mac_file_name}")
     count = Machine.count
     case 
    

@@ -175,7 +175,7 @@ def self.delay_jobs1
   tenants.each do |tenant|
 
     date = Date.today.strftime("%Y-%m-%d") # "2019-12-25"
-#    date =  "2020-09-13"  
+    #date =  "2020-11-16"  
   # CncReport.delay(run_at: date.to_time + 1.hours, method: "sync").data_sync  
   # CncReport.delay(run_at: date.to_time + 13.hours, method: "sync").data_sync
     tenant.shift.shifttransactions.each do |shift|

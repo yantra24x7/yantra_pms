@@ -28,7 +28,7 @@ class ProgramConfsController < ApplicationController
       File.open(File.join(dir, file_name), "wb") do |file|
         file.write(final_data)
       end
-    # system("sudo reboot")
+    system("sudo reboot")
       render json: {status: "true"}
     else
       render json: {status: "Give the user name and password"}
